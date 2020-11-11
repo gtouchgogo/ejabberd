@@ -1,4 +1,4 @@
-
+[返回首页](https://github.com/startalkIM/Startalk)
 
 # Startalk EJABBERD
 
@@ -177,12 +177,18 @@ daemonize yes
 requirepass 123456
 maxmemory 134217728
  
+```
+
+
+### redis 启动
+```
 启动redis
 $ sudo redis-server /etc/redis.conf
  
 确认启动成功：
 $ sudo netstat -antlp | grep 6379
 tcp        0      0 127.0.0.1:6379          0.0.0.0:*               LISTEN      8813/redis-server 1
+
 ```
 
 ### 数据库安装
@@ -218,24 +224,28 @@ $ /opt/pg11/bin/initdb -D /export/pg110_data
 5. 修改数据库配置文件
 
 将/export/pg110_data/postgresql.conf中的logging_collector的值改为on
+```
 
-6. 启动DB实例
- 
+### 数据库启动
+```
 $ /opt/pg11/bin/pg_ctl -D /export/pg110_data start
 确认启动成功
 $ sudo netstat -antlp | grep 5432
 tcp        0      0 127.0.0.1:5432          0.0.0.0:*               LISTEN      4751/postmaster     
- 
-7. 初始化DB结构
+
+```
+### 初始化数据库
+``` 
+1. 初始化DB结构
  
 $ /opt/pg11/bin/psql -U postgres -d postgres -f /startalk/qtalk.sql
 $ /opt/pg11/bin/psql -U postgres -d ejabberd -f /startalk/init.sql
  
-8. 初始化DB user: ejabberd的密码
+2. 初始化DB user: ejabberd的密码
  
 $ /opt/pg11/bin/psql -U postgres -d postgres -c "ALTER USER ejabberd WITH PASSWORD '123456';"
  
-9 psql连接数据库
+3. psql连接数据库
 
 $ psql -U postgres -d ejabberd -h 127.0.0.1
 psql (9.2.24, server 11.1)
@@ -245,6 +255,7 @@ Type "help" for help.
 
 ejabberd=# select * from host_users;
 ```
+
 
 ### openresty安装
 
@@ -258,12 +269,14 @@ $ ./configure --prefix=/startalk/openresty --with-http_auth_request_module
 $ make
 $ make install
 
-or安装
-$ cd /startalk/download/or_open
+openresty 安装
+$ cd /startalk/download/openresty_ng
 $ cp -rf conf /startalk/openresty/nginx
 $ cp -rf lua_app /startalk/openresty/nginx
+```
+# openresty 启动
 
-or操作
+```
 启动：/startalk/openresty/nginx/sbin/nginx
 
 确认启动成功
@@ -311,7 +324,10 @@ $ make
 $ make install
 $ cp ejabberd.yml.qunar /startalk/ejabberd/etc/ejabberd/ejabberd.yml
 $ cp ejabberdctl.cfg.qunar /startalk/ejabberd/etc/ejabberd/ejabberdctl.cfg
+```
+### 启动 ejabberd
 
+```
 启动ejabberd
 
 $ cd /startalk/ejabberd
@@ -323,11 +339,11 @@ $ ps -ef | grep 's ejabberd'
 startalk 23515     1  4 09:58 ?        00:00:03 /startalk/erlang1903/lib/erlang/erts-8.3/bin/beam.smp -K true -P 250000 -- -root /startalk/erlang1903/lib/erlang -progname erl -- -home /home/startalk -- -name ejabberd@startalk.com -noshell -noinput -noshell -noinput -mnesia dir "/startalk/ejabberd/var/lib/ejabberd" -ejabberd log_rate_limit 20000 log_rotate_size 504857600 log_rotate_count 41 log_rotate_date "$D0" -s ejabberd -smp auto start
 ```
 
-### 安装java服务(/startalk/download/or_open/deps/tomcat/下的是打好包的三个java服务，自己也可以使用源码打包，然后自己部署)
+### 安装java服务(/startalk/download/openresty_ng/deps/tomcat/下的是打好包的三个java服务，自己也可以使用源码打包，然后自己部署)
 
 ```
 $ cd /startalk/download/
-$ cp -rf or_open/deps/tomcat /startalk/
+$ cp -rf openresty_ng/deps/tomcat /startalk/
 $ cd /startalk/tomcat
 
 修改导航地址和扩展键盘：
@@ -337,7 +353,7 @@ $  vim /startalk/tomcat/im_http_service/webapps/im_http_service/WEB-INF/classes/
 $  vim /startalk/tomcat/im_http_service/webapps/im_http_service/WEB-INF/classes/iosqtalk.json
 $  vim /startalk/tomcat/im_http_service/webapps/im_http_service/WEB-INF/classes/iosstartalk.json
 
-将ip替换成对应机器的ip地址(sed -i "s/ip/xxx.xxx.xxx.xxx/g")
+将ip替换成对应机器的ip地址(sed -i "s/ip/xxx.xxx.xxx.xxx/g" 或者在vim内 :%s/ip/xxx.xxx.xxx.xxx/g)
 
 修改推送服务的地址
 
@@ -346,8 +362,10 @@ $ vim /startalk/tomcat/push_service/webapps/push_service/WEB-INF/classes/app.pro
 qtalk_push_url=http://ip:8091/qtapi/token/sendPush.qunar
 #使用星语push key
 qtalk_push_key=12342a14-e6c0-463f-90a0-92b8faec4063
+```
 
-启动java服务
+### 启动java服务
+```
 $ cd /startalk/tomcat/im_http_service
 $ ./bin/startup.sh
 
@@ -357,8 +375,12 @@ $ ./bin/startup.sh
 
 $ cd /startalk/tomcat/push_service
 $ ./bin/startup.sh
+```
 
-确认服务启动成功
+
+### 确认服务启动成功
+
+```
 $ sudo netstat -antlp | egrep '8081|8082|8083|8009|8010|8011|8005|8006|8007'
 tcp6       0      0 127.0.0.1:8007          :::*                    LISTEN      23853/java          
 tcp6       0      0 :::8009                 :::*                    LISTEN      23748/java          
@@ -373,29 +395,39 @@ tcp6       0      0 127.0.0.1:8006          :::*                    LISTEN      
 
 ### 安装后端搜索服务
 ```
-安装python3 (3以上都可以，以3.6为标准)
-$ cd /startalk/download/search
-$ sudo yum install https://centos7.iuscommunity.org/ius-release.rpm
-$ sudo yum install python36u
-安装pip3
-$ sudo yum -y install python-pip
-所需模块见/startalk/download/search/requirements.txt, 建议使用virtualenv部署模块所需环境 (如不使用将系统级安装python3.6, 容易引起和大多数centos自带python2.7的冲突, 同时也需要自行安装python3的pip, 并指定pip3安装所需模块):
-$ sudo pip install -U virtualenv （安装virtualenv）
-$ sudo pip install --upgrade pip
-$ virtualenv --system-site-packages -p python3.6 ./venv （在当前目录下创建venv环境）
-启动环境
-$ source venv/bin/activate
-配置conf/configure.ini, 具体参数详见文件内注释, 如无特殊需求可不修改
-$ sudo vim ./conf/configure.ini
-安装项目所需模块(如未安装virtualenv, 需sudo yum install python36u-pip, 并使用sudo pip3.6代替命令中默认的pip)
-$ pip install -r requirements.txt
-设置PYTHONPATH
-$ export PYTHONPATH=path/to/project/search:$PYTHONPATH
-后台启动
-$ supervisord -c conf/supervisor.conf
-$ supervisorctl -c conf/supervisor.conf reload
-确保服务启动（观察日志,确保无报错）
-$ tail -100f log/access.log 
+#### **准备**：
+#### *前提*:
+        openssl version >= 1.02
+        python3.7及以上 
+                https://www.python.org/downloads/source/ 选择最新tar包并下载
+                tar -zxvf Python-3.8.1.tgz
+                cd Python-3.8.1
+                ./configure
+                sudo make && make install
+        pip
+                sudo yum -y install python-pip
+        外网接口/nginx等转发服务
+        postgresql 10，相关字段参考qtalk
+        所需模块见requirements.txt， 建议使用virtualenv部署模块所需环境
+                sudo pip install -U virtualenv （安装virtualenv）
+                sudo pip install --upgrade pip
+                virtualenv --system-site-packages -p python3.8 ./venv （在当前目录下创建venv环境）
+                启动环境
+                source venv/bin/activate
+
+#### *安装：*:
+        1)配置conf/configure.ini
+        2)pip install -r requirements.txt （推荐新建虚拟环境）
+        3)export PYTHONPATH=path/to/project/qtalk_search:$PYTHONPATH
+        4)cd path/to/project/qtalk_search
+        5)unlink /tmp/supervisor.sock
+        5)supervisord -c conf/supervisor.conf
+        7)supervisorctl -c conf/supervisor.conf reload
+       
+#### *确认服务开启：*:
+        确保日志无报错
+        tail -100f log/access.log
+
 ```
 可以执行以下脚本来检查一些常见的错误: 下载该文件[check.sh](https://github.com/startalkIM/openresty_ng/blob/master/tools/check.sh)
 
@@ -449,6 +481,7 @@ $ tail -100f log/access.log
 
 ## 问题反馈
 
-- qchat@qunar.com（邮件）
-- 852987381（QQ群）
-- QQ群二维码 ![qq](image/qq.png)
+- app@startalk.im（邮件）
+- 1065751631（QQ群）
+- QQ群二维码 ![qq](image/qq2.png)
+[返回首页](https://github.com/startalkIM/Startalk)
