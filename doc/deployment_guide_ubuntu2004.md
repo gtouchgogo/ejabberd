@@ -10,7 +10,7 @@
 ## redis: 6379
 ## 所需开放对外的端口: 5202(ejabberd)、 8080(nginx), 可使用systemctl disable firewalld关闭防火墙放开端口
 ## 所有的自动操作都将原文件进行了备份.bak, 在测试情况下可以将所有命令使用&&并联实现一键部署(中途有三处需要人工)
-
+## java
 
 ## 安装openresty以及postgresql的apt源
 wget --quiet -O - https://www.postgresql.org/media/keys/ACCC4CF8.asc | sudo apt-key add -
@@ -25,7 +25,10 @@ sudo sed -i -e '$a127.0.0.1 startalk.com' /etc/hosts
 sudo mkdir /startalk 
 sudo groupadd startalk
 sudo useradd -d /startalk -g startalk -s /bin/bash startalk
+echo -n "请设定startalk用户密码"
 sudo passwd startalk
+sudo passwd startalk
+
 sudo chown -R startalk:startalk /startalk
 # 将startalk与postgres加入sudo用户
 sudo vim /etc/sudoers
@@ -34,17 +37,27 @@ sudo vim /etc/sudoers
 		
 
 sudo su - startalk
+echo "postgresql_host=127.0.0.1
+postgresql_port=5432
+postgresql_super_user=postgres
+postgresql_super_user_pwd=123456
+
+redis_host=127.0.0.1
+redisl_port=6379
+redis_pwd=123456" >> /startalk/.startalk_config
+
+
 mkdir /startalk/download
 cd /startalk/download
 
 ## 进行所有需要下载的工作, 这部将占据较长时间, 这部如果没有完成或报错请不要继续, 先debug. 命令请复制整个章节
+sudo apt install -y autoconf libncurses-dev build-essential m4 unixodbc-dev libssl-dev libglu-dev  fop xsltproc g++  default-jdk  libxml2-utils  libyaml-dev libexpat1-dev zlib1g zlib1g-dev vim  postgresql-11 git redis-server libpcre3-dev libssl-dev perl make build-essential curl openresty mlocate libffi-dev libwxgtk3.0-gtk3-dev &&
 git clone https://github.com/startalkIM/ejabberd.git &&
 git clone https://github.com/startalkIM/openresty_ng.git &&
 git clone https://github.com/startalkIM/search.git &&
 wget https://www.openssl.org/source/openssl-1.0.2l.tar.gz &&
 wget http://erlang.org/download/otp_src_19.3.tar.gz &&
-wget https://www.python.org/ftp/python/3.7.9/Python-3.7.9.tgz &&
-&& sudo apt install -y autoconf libncurses-dev build-essential m4 unixodbc-dev libssl-dev libglu-dev  fop xsltproc g++  default-jdk  libxml2-utils  libyaml-dev libexpat1-dev zlib1g zlib1g-dev vim  postgresql-11 git redis-server libpcre3-dev libssl-dev perl make build-essential curl openresty mlocate libffi-dev
+wget https://www.python.org/ftp/python/3.7.9/Python-3.7.9.tgz 
 
 
 ## 为erlang19安装低版本openssl1.0.2, 安装于/startalk/openssl1.0.2l
@@ -57,12 +70,22 @@ sed -i '0,/CFLAG=/s//CFLAG= -fPIC /' /startalk/download/openssl-1.0.2l/Makefile
 make install
 
 ## redis安装, 密码为123456, 未开通外部连接仅限本机
-sudo cp /etc/redis/redis.conf /etc/redis/redis.conf.bak
-sudo sed -i 's/#\s*daemonize\s*off/daemonize yes/g' /etc/redis/redis.conf
-sudo sed -i 's/#\s*requirepass\s*foobared/requirepass 123456/g' /etc/redis/redis.conf
-sudo sed -i 's/#\s*maxmemory\s*<bytes>/maxmemory 134217728/g' /etc/redis/redis.conf
-sudo systemctl enable redis-server.service
-sudo systemctl restart redis-server.service
+redis_exist=`ps -ef|grep redis-server|grep -v grep`
+if [ -n "$redis_exist" ]; then
+	echo "redis已存在.."
+	# 使用ps确定
+	echo -n "请输入redis密码 :"
+	read redis_default_password
+	sed -i 's/redis_pwd=.*/redis_pwd=$redis_default_password/g' /startalk/.startalk_config
+
+else
+	sudo cp /etc/redis/redis.conf /etc/redis/redis.conf.bak
+	sudo sed -i 's/#\s*daemonize\s*off/daemonize yes/g' /etc/redis/redis.conf
+	sudo sed -i 's/#\s*requirepass\s*foobared/requirepass 123456/g' /etc/redis/redis.conf
+	sudo sed -i 's/#\s*maxmemory\s*<bytes>/maxmemory 134217728/g' /etc/redis/redis.conf
+	sudo systemctl enable redis-server.service
+	sudo systemctl restart redis-server.service
+fi
 
 ## openresty, 这样处理可以让更新openresty变得更方便
 sudo cp -r /usr/local/openresty/nginx/conf /usr/local/openresty/nginx/conf.bak
@@ -74,14 +97,14 @@ sudo systemctl enable openresty
 sudo systemctl restart openresty
 
 ## 数据库采用PostgreSQL-11, 使用包管理工具进行安装, dbinit.sh来简化初始化, 由于将超级用户与普通用户进行了分别, 需要管理员是postgres以及它的账号密码
-#TODO: !! 修改pg_hba.conf 将local的peer改为md5, 使得可以密码登陆
 sudo su - postgres
+# 如果没有 
 psql -c "alter user postgres password '123456'";
 cd /startalk/download/ejabberd/doc/
 # 使用脚本进行创建, 可能会遇到因pg版本不同导致的命令错误, 需要进行人工交互
-cp  /etc/postgresql/11/main/postgresql.conf  /etc/postgresql/11/main/postgresql.conf.bak
+cp /etc/postgresql/11/main/postgresql.conf  /etc/postgresql/11/main/postgresql.conf.bak
 sed -i 's/#\s*logging_collector\s*=\s*off/logging_collector = on/g'  /etc/postgresql/11/main/postgresql.conf
-# 修改pg_hba.conf使账户可以通过密码登陆, 文件通常位于/etc/postgresql/11/main/pg_hba.conf
+## !! notice: If PostgreSql didn't deploy on your server before, then edit /etc/postgresql/11/main/pg_hba.conf like below: 
 vim /etc/postgresql/11/main/pg_hba.conf
 	# "local" is for Unix domain socket connections only
 	local   all             all                                     md5
@@ -120,7 +143,7 @@ sed -i "s/ip/$MY_IP/g" /startalk/tomcat/im_http_service/webapps/im_http_service/
 sed -i "s/qtalk_push_url=.*/qtalk_push_url=http:\/\/$MY_IP:8091\/qtapi\/token\/sendPush.qunar/g" /startalk/tomcat/push_service/webapps/push_service/WEB-INF/classes/app.properties
 sed -i "s/qtalk_push_key=.*/qtalk_push_key=12342a14-e6c0-463f-90a0-92b8faec4063/g" /startalk/tomcat/push_service/webapps/push_service/WEB-INF/classes/app.properties
 /startalk/tomcat/im_http_service/bin/startup.sh && sleep 1
-/startalk/tomcat/qf_proxy/bin/startup.sh && sleep 1
+/startalk/tomcat/qfproxy/bin/startup.sh && sleep 1
 /startalk/tomcat/push_service/bin/startup.sh && sleep 1
 
 
